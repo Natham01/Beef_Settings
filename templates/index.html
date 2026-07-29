@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beef Settings ⚙️</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="brand">
+                <h1>⚙️ Beef Settings</h1>
+                <p>Central de Utilitários</p>
+            </div>
+            
+            <nav class="menu">
+                <button class="menu-btn active" onclick="mostrarAba('aba-img')">
+                    🖼️ Converter Imagem
+                </button>
+                <button class="menu-btn" onclick="mostrarAba('aba-pdf')">
+                    📑 Mesclar PDFs
+                </button>
+                <button class="menu-btn" onclick="mostrarAba('aba-mp3')">
+                    🎵 Baixar MP3
+                </button>
+            </nav>
+        </aside>
+
+        <main class="content-area">
+            
+            <section id="aba-img" class="tool-card active">
+                <h2>🖼️ Imagem para PDF</h2>
+                <p>Selecione uma imagem (JPG, PNG) para converter em documento PDF.</p>
+                
+                <form id="form-img">
+                    <label for="input-img" class="file-upload-btn">
+                        📁 Escolher Imagem
+                    </label>
+                    <input type="file" id="input-img" accept="image/*" required>
+                    <span id="label-img" class="file-name">Nenhum arquivo selecionado</span>
+
+                    <button type="submit" class="action-btn">Converter para PDF</button>
+                </form>
+            </section>
+
+            <section id="aba-pdf" class="tool-card">
+                <h2>📑 Mesclar PDFs</h2>
+                <p>Selecione 2 ou mais arquivos PDF para unificar em um só.</p>
+                
+                <form id="form-pdf">
+                    <label for="input-pdf" class="file-upload-btn">
+                        📂 Escolher PDFs
+                    </label>
+                    <input type="file" id="input-pdf" accept=".pdf" multiple required>
+                    <span id="label-pdf" class="file-name">Nenhum arquivo selecionado</span>
+
+                    <input type="text" id="nome-pdf" class="text-input" placeholder="Nome do arquivo final (opcional)">
+
+                    <button type="submit" class="action-btn">Mesclar Arquivos</button>
+                </form>
+            </section>
+
+            <section id="aba-mp3" class="tool-card">
+                <h2>🎵 Baixar MP3 do YouTube</h2>
+                <p>Cole o link do vídeo para extrair o áudio na melhor qualidade.</p>
+                
+                <form id="form-mp3">
+                    <input type="text" id="url-mp3" class="text-input" placeholder="https://www.youtube.com/watch?v=..." required>
+                    <button type="submit" class="action-btn">Baixar Áudio MP3</button>
+                </form>
+            </section>
+
+            <div id="status-box" class="status-box hidden"></div>
+        </main>
+    </div>
+
+    <script>
+        // Função para Alternar as Abas no Menu
+        function mostrarAba(idAba) {
+            // Oculta todas as telas de ferramentas
+            document.querySelectorAll('.tool-card').forEach(card => card.classList.remove('active'));
+            // Remove destaque dos botões do menu
+            document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
+
+            // Mostra a aba selecionada
+            document.getElementById(idAba).classList.add('active');
+            // Destaque no botão clicado
+            event.currentTarget.classList.add('active');
+
+            // Esconde a caixa de status ao trocar de aba
+            const statusBox = document.getElementById('status-box');
+            statusBox.classList.add('hidden');
+        }
+
+        // Atualiza os rótulos de arquivos selecionados
+        document.getElementById('input-img').addEventListener('change', function() {
+            const fileName = this.files[0] ? this.files[0].name : 'Nenhum arquivo selecionado';
+            document.getElementById('label-img').textContent = fileName;
+        });
+
+        document.getElementById('input-pdf').addEventListener('change', function() {
+            const count = this.files.length;
+            const text = count === 1 ? '1 arquivo selecionado' : (count > 1 ? `${count} arquivos selecionados` : 'Nenhum arquivo selecionado');
+            document.getElementById('label-pdf').textContent = text;
+        });
+
+        // Requisição Genérica AJAX
+        async function enviarFormulario(url, formData) {
+            const statusBox = document.getElementById('status-box');
+            statusBox.className = 'status-box';
+            statusBox.innerText = "⏳ Processando... Aguarde um momento.";
+
+            try {
+                const response = await fetch(url, { method: 'POST', body: formData });
+                const result = await response.json();
+
+                if (result.sucesso) {
+                    statusBox.className = 'status-box success';
+                    statusBox.innerText = "✅ " + result.mensagem;
+                } else {
+                    statusBox.className = 'status-box error';
+                    statusBox.innerText = "❌ Erro: " + result.mensagem;
+                }
+            } catch (err) {
+                statusBox.className = 'status-box error';
+                statusBox.innerText = "❌ Erro de comunicação com o servidor.";
+            }
+        }
+
+        // Form Conversão
+        document.getElementById('form-img').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('imagem', document.getElementById('input-img').files[0]);
+            enviarFormulario('/api/converter-imagem', formData);
+        });
+
+        // Form Mescla PDF
+        document.getElementById('form-pdf').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            const files = document.getElementById('input-pdf').files;
+            const nomePdf = document.getElementById('nome-pdf').value;
+
+            for (let i = 0; i < files.length; i++) {
+                formData.append('pdfs', files[i]);
+            }
+            formData.append('nome_pdf', nomePdf);
+
+            enviarFormulario('/api/mesclar-pdfs', formData);
+        });
+
+        // Form MP3
+        document.getElementById('form-mp3').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('url', document.getElementById('url-mp3').value);
+            enviarFormulario('/api/baixar-mp3', formData);
+        });
+    </script>
+</body>
+</html>
